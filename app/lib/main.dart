@@ -171,17 +171,12 @@ class _MainShellState extends State<MainShell> {
               ),
             ),
             // #20 全局快速创建 FAB
-            trailing: Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: FloatingActionButton.small(
-                    onPressed: () => QuickAddDialog.show(context),
-                    tooltip: '快速创建 (Ctrl+N)',
-                    child: const Icon(Icons.add),
-                  ),
-                ),
+            trailing: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: FloatingActionButton.small(
+                onPressed: () => QuickAddDialog.show(context),
+                tooltip: '快速创建 (Ctrl+N)',
+                child: const Icon(Icons.add),
               ),
             ),
             destinations: _navItems,
