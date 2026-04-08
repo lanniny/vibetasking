@@ -31,6 +31,32 @@ class AddTask extends TaskEvent {
       [title, description, priority, dueDate, tags, parentId];
 }
 
+class EditTask extends TaskEvent {
+  final int taskId;
+  final String? title;
+  final String? description;
+  final String? status;
+  final String? priority;
+  final DateTime? dueDate;
+  final bool clearDueDate;
+  final List<String>? tags;
+
+  const EditTask({
+    required this.taskId,
+    this.title,
+    this.description,
+    this.status,
+    this.priority,
+    this.dueDate,
+    this.clearDueDate = false,
+    this.tags,
+  });
+
+  @override
+  List<Object?> get props =>
+      [taskId, title, description, status, priority, dueDate, clearDueDate, tags];
+}
+
 class UpdateTaskStatus extends TaskEvent {
   final int taskId;
   final String newStatus;
@@ -50,11 +76,20 @@ class DeleteTask extends TaskEvent {
   List<Object?> get props => [taskId];
 }
 
+class SearchTasks extends TaskEvent {
+  final String query;
+
+  const SearchTasks(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}
+
 class FilterTasks extends TaskEvent {
   final String? statusFilter;
   final String? priorityFilter;
   final String? tagFilter;
-  final String sortBy; // created_at / due_date / priority
+  final String sortBy;
 
   const FilterTasks({
     this.statusFilter,

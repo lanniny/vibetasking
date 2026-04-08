@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vibetasking/core/ai_providers/provider_manager.dart';
 import 'package:vibetasking/core/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import 'package:vibetasking/presentation/pages/board_page.dart';
 import 'package:vibetasking/presentation/pages/chat_page.dart';
 import 'package:vibetasking/presentation/pages/list_page.dart';
 import 'package:vibetasking/presentation/pages/settings_page.dart';
+import 'package:vibetasking/presentation/widgets/common/quick_add_dialog.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,6 +92,42 @@ class _MainShellState extends State<MainShell> {
     ),
   ];
 
+  // #14 快捷键
+  void _handleKey(KeyEvent event) {
+    if (event is! KeyDownEvent) return;
+    final ctrl = HardwareKeyboard.instance.isControlPressed;
+    if (!ctrl) return;
+
+    if (event.logicalKey == LogicalKeyboardKey.keyN) {
+      QuickAddDialog.show(context);
+    } else if (event.logicalKey == LogicalKeyboardKey.digit1) {
+      setState(() => _selectedIndex = 0);
+    } else if (event.logicalKey == LogicalKeyboardKey.digit2) {
+      setState(() => _selectedIndex = 1);
+    } else if (event.logicalKey == LogicalKeyboardKey.digit3) {
+      setState(() => _selectedIndex = 2);
+    } else if (event.logicalKey == LogicalKeyboardKey.digit4) {
+      setState(() => _selectedIndex = 3);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    HardwareKeyboard.instance.addHandler(_handleKeyWrapper);
+  }
+
+  @override
+  void dispose() {
+    HardwareKeyboard.instance.removeHandler(_handleKeyWrapper);
+    super.dispose();
+  }
+
+  bool _handleKeyWrapper(KeyEvent event) {
+    _handleKey(event);
+    return false; // 不拦截事件
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -106,7 +144,21 @@ class _MainShellState extends State<MainShell> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Column(
                 children: [
-                  Icon(Icons.bolt, color: theme.colorScheme.primary, size: 32),
+                  // #19 品牌 Logo
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.bolt, color: Colors.white, size: 24),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     'Vibe',
@@ -116,6 +168,20 @@ class _MainShellState extends State<MainShell> {
                     ),
                   ),
                 ],
+              ),
+            ),
+            // #20 全局快速创建 FAB
+            trailing: Expanded(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: FloatingActionButton.small(
+                    onPressed: () => QuickAddDialog.show(context),
+                    tooltip: '快速创建 (Ctrl+N)',
+                    child: const Icon(Icons.add),
+                  ),
+                ),
               ),
             ),
             destinations: _navItems,

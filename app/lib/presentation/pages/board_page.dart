@@ -6,42 +6,94 @@ import 'package:vibetasking/presentation/blocs/task/task_bloc.dart';
 import 'package:vibetasking/presentation/blocs/task/task_event.dart';
 import 'package:vibetasking/presentation/blocs/task/task_state.dart';
 import 'package:vibetasking/presentation/widgets/common/task_card.dart';
+import 'package:vibetasking/presentation/widgets/common/quick_add_dialog.dart';
 
 class BoardPage extends StatelessWidget {
   const BoardPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return BlocBuilder<TaskBloc, TaskState>(
       builder: (context, state) {
         if (state.status == TaskStatus.loading) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        return Column(
           children: [
-            _BoardColumn(
-              title: '待办',
-              status: 'todo',
-              tasks: state.todoTasks,
-              color: const Color(0xFF6366F1),
-            ),
-            _BoardColumn(
-              title: '进行中',
-              status: 'in_progress',
-              tasks: state.inProgressTasks,
-              color: const Color(0xFFF97316),
-            ),
-            _BoardColumn(
-              title: '已完成',
-              status: 'done',
-              tasks: state.doneTasks,
-              color: const Color(0xFF22C55E),
+            // #16 进度统计栏
+            _ProgressBar(state: state),
+            const Divider(height: 1),
+
+            // 看板列
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _BoardColumn(
+                    title: '待办',
+                    status: 'todo',
+                    tasks: state.todoTasks,
+                    color: const Color(0xFF6366F1),
+                  ),
+                  _BoardColumn(
+                    title: '进行中',
+                    status: 'in_progress',
+                    tasks: state.inProgressTasks,
+                    color: const Color(0xFFF97316),
+                  ),
+                  _BoardColumn(
+                    title: '已完成',
+                    status: 'done',
+                    tasks: state.doneTasks,
+                    color: const Color(0xFF22C55E),
+                  ),
+                ],
+              ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+class _ProgressBar extends StatelessWidget {
+  final TaskState state;
+  const _ProgressBar({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final rate = state.completionRate;
+    final pct = (rate * 100).toStringAsFixed(0);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Text('${state.totalCount} 个任务', style: theme.textTheme.bodySmall),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: rate,
+                minHeight: 6,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text('$pct% 完成',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.primary,
+              )),
+        ],
+      ),
     );
   }
 }
@@ -88,7 +140,7 @@ class _BoardColumn extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 列标题
+                // 列标题 + 添加按钮
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -119,6 +171,17 @@ class _BoardColumn extends StatelessWidget {
                           '${tasks.length}',
                           style: theme.textTheme.bodySmall,
                         ),
+                      ),
+                      const Spacer(),
+                      // #2 快速添加按钮
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 18),
+                        onPressed: () => QuickAddDialog.show(
+                          context,
+                          initialStatus: status,
+                        ),
+                        tooltip: '添加任务',
+                        visualDensity: VisualDensity.compact,
                       ),
                     ],
                   ),

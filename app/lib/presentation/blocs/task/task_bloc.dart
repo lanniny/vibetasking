@@ -12,30 +12,25 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   TaskBloc(this._db) : super(const TaskState()) {
     on<LoadTasks>(_onLoadTasks);
     on<AddTask>(_onAddTask);
+    on<EditTask>(_onEditTask);
     on<UpdateTaskStatus>(_onUpdateTaskStatus);
     on<DeleteTask>(_onDeleteTask);
+    on<SearchTasks>(_onSearchTasks);
     on<FilterTasks>(_onFilterTasks);
+  }
+
+  Future<void> _reload(Emitter<TaskState> emit) async {
+    final tasks = await _db.getAllTasks();
+    emit(state.copyWith(status: TaskStatus.loaded, allTasks: tasks));
   }
 
   Future<void> _onLoadTasks(LoadTasks event, Emitter<TaskState> emit) async {
     emit(state.copyWith(status: TaskStatus.loading));
     await _tasksSub?.cancel();
-    _tasksSub = _db.watchAllTasks().listen(
-      (tasks) => add(FilterTasks(
-        statusFilter: state.statusFilter,
-        priorityFilter: state.priorityFilter,
-        sortBy: state.sortBy,
-      )),
-    );
-    try {
-      final tasks = await _db.getAllTasks();
-      emit(state.copyWith(status: TaskStatus.loaded, tasks: tasks));
-    } catch (e) {
-      emit(state.copyWith(
-        status: TaskStatus.error,
-        errorMessage: e.toString(),
-      ));
-    }
+    _tasksSub = _db.watchAllTasks().listen((_) {
+      if (!isClosed) add(LoadTasks());
+    });
+    await _reload(emit);
   }
 
   Future<void> _onAddTask(AddTask event, Emitter<TaskState> emit) async {
@@ -48,27 +43,39 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
         parentId: Value(event.parentId),
       ));
 
-      // 处理标签
       if (event.tags.isNotEmpty) {
-        final tagIds = <int>[];
-        for (final tagName in event.tags) {
-          final existing = (await _db.getAllTags())
-              .where((t) => t.name == tagName)
-              .toList();
-          if (existing.isNotEmpty) {
-            tagIds.add(existing.first.id);
-          } else {
-            final id = await _db
-                .insertTag(TagsCompanion.insert(name: tagName));
-            tagIds.add(id);
-          }
-        }
-        await _db.setTagsForTask(taskId, tagIds);
+        await _setTagsByName(taskId, event.tags);
       }
 
-      // 重新加载
-      final tasks = await _db.getAllTasks();
-      emit(state.copyWith(status: TaskStatus.loaded, tasks: tasks));
+      await _reload(emit);
+    } catch (e) {
+      emit(state.copyWith(
+        status: TaskStatus.error,
+        errorMessage: e.toString(),
+      ));
+    }
+  }
+
+  Future<void> _onEditTask(EditTask event, Emitter<TaskState> emit) async {
+    try {
+      final task = await _db.getTaskById(event.taskId);
+      await _db.updateTask(TasksCompanion(
+        id: Value(task.id),
+        title: Value(event.title ?? task.title),
+        description: Value(event.description ?? task.description),
+        status: Value(event.status ?? task.status),
+        priority: Value(event.priority ?? task.priority),
+        dueDate: Value(event.clearDueDate ? null : (event.dueDate ?? task.dueDate)),
+        parentId: Value(task.parentId),
+        createdAt: Value(task.createdAt),
+        updatedAt: Value(DateTime.now()),
+      ));
+
+      if (event.tags != null) {
+        await _setTagsByName(event.taskId, event.tags!);
+      }
+
+      await _reload(emit);
     } catch (e) {
       emit(state.copyWith(
         status: TaskStatus.error,
@@ -94,8 +101,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
         createdAt: Value(task.createdAt),
         updatedAt: Value(DateTime.now()),
       ));
-      final tasks = await _db.getAllTasks();
-      emit(state.copyWith(status: TaskStatus.loaded, tasks: tasks));
+      await _reload(emit);
     } catch (e) {
       emit(state.copyWith(
         status: TaskStatus.error,
@@ -108,39 +114,41 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     DeleteTask event,
     Emitter<TaskState> emit,
   ) async {
+    // 同时删除子任务
+    final subs = await _db.getSubTasks(event.taskId);
+    for (final sub in subs) {
+      await _db.deleteTask(sub.id);
+    }
     await _db.deleteTask(event.taskId);
-    final tasks = await _db.getAllTasks();
-    emit(state.copyWith(status: TaskStatus.loaded, tasks: tasks));
+    await _reload(emit);
+  }
+
+  void _onSearchTasks(SearchTasks event, Emitter<TaskState> emit) {
+    emit(state.copyWith(searchQuery: event.query));
   }
 
   void _onFilterTasks(FilterTasks event, Emitter<TaskState> emit) {
-    var filtered = List<Task>.from(state.tasks);
-
-    // 排序
-    switch (event.sortBy) {
-      case 'priority':
-        const order = {'urgent': 0, 'high': 1, 'medium': 2, 'low': 3};
-        filtered.sort((a, b) =>
-            (order[a.priority] ?? 2).compareTo(order[b.priority] ?? 2));
-        break;
-      case 'due_date':
-        filtered.sort((a, b) {
-          if (a.dueDate == null && b.dueDate == null) return 0;
-          if (a.dueDate == null) return 1;
-          if (b.dueDate == null) return -1;
-          return a.dueDate!.compareTo(b.dueDate!);
-        });
-        break;
-      default:
-        filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    }
-
     emit(state.copyWith(
-      tasks: filtered,
       statusFilter: event.statusFilter,
       priorityFilter: event.priorityFilter,
+      tagFilter: event.tagFilter,
       sortBy: event.sortBy,
     ));
+  }
+
+  Future<void> _setTagsByName(int taskId, List<String> tagNames) async {
+    final tagIds = <int>[];
+    for (final name in tagNames) {
+      final existing =
+          (await _db.getAllTags()).where((t) => t.name == name).toList();
+      if (existing.isNotEmpty) {
+        tagIds.add(existing.first.id);
+      } else {
+        final id = await _db.insertTag(TagsCompanion.insert(name: name));
+        tagIds.add(id);
+      }
+    }
+    await _db.setTagsForTask(taskId, tagIds);
   }
 
   @override

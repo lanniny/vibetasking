@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:vibetasking/data/database/database.dart';
 import 'package:vibetasking/core/theme/app_theme.dart';
+import 'package:vibetasking/presentation/widgets/common/task_detail_dialog.dart';
 
 class TaskCard extends StatelessWidget {
   final Task task;
@@ -23,7 +24,7 @@ class TaskCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: onTap ?? () => TaskDetailDialog.show(context, task),
         child: Container(
           decoration: BoxDecoration(
             border: Border(left: BorderSide(color: priorityColor, width: 4)),
@@ -54,6 +55,19 @@ class TaskCard extends StatelessWidget {
                 ],
               ),
 
+              // #10 描述预览
+              if (task.description != null && task.description!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  task.description!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+
               const SizedBox(height: 8),
 
               // 底部信息
@@ -77,7 +91,6 @@ class TaskCard extends StatelessWidget {
                     const SizedBox(width: 12),
                   ],
                   const Spacer(),
-                  // 状态切换
                   _StatusDropdown(
                     status: task.status,
                     onChanged: onStatusChanged,

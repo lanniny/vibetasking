@@ -28,6 +28,9 @@ dependencies:
   http: ^1.4.0
   dart_openai: ^5.1.0
 
+  # Markdown
+  flutter_markdown: ^0.7.7
+
   # 工具
   uuid: ^4.5.1
   intl: ^0.20.2

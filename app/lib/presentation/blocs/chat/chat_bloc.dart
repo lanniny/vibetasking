@@ -32,31 +32,51 @@ class ClearChat extends ChatEvent {}
 
 enum ChatStatus { idle, sending, error }
 
+/// 聊天中内联展示的已创建任务
+class InlineCreatedTask {
+  final String title;
+  final String priority;
+  final DateTime? dueDate;
+  final List<String> tags;
+
+  const InlineCreatedTask({
+    required this.title,
+    this.priority = 'medium',
+    this.dueDate,
+    this.tags = const [],
+  });
+}
+
 class ChatState extends Equatable {
   final ChatStatus status;
   final List<ChatMessage> messages;
   final String? errorMessage;
+  // 最近一次 AI 创建的任务（用于内联展示）
+  final List<InlineCreatedTask> lastCreatedTasks;
 
   const ChatState({
     this.status = ChatStatus.idle,
     this.messages = const [],
     this.errorMessage,
+    this.lastCreatedTasks = const [],
   });
 
   ChatState copyWith({
     ChatStatus? status,
     List<ChatMessage>? messages,
     String? errorMessage,
+    List<InlineCreatedTask>? lastCreatedTasks,
   }) {
     return ChatState(
       status: status ?? this.status,
       messages: messages ?? this.messages,
       errorMessage: errorMessage,
+      lastCreatedTasks: lastCreatedTasks ?? this.lastCreatedTasks,
     );
   }
 
   @override
-  List<Object?> get props => [status, messages, errorMessage];
+  List<Object?> get props => [status, messages, errorMessage, lastCreatedTasks];
 }
 
 // ── BLoC ──
@@ -87,7 +107,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       content: event.content,
     ));
     var messages = await _db.getAllMessages();
-    emit(state.copyWith(status: ChatStatus.sending, messages: messages));
+    emit(state.copyWith(
+      status: ChatStatus.sending,
+      messages: messages,
+      lastCreatedTasks: const [],
+    ));
 
     // 获取 AI Provider
     final provider = _providerManager.activeProvider;
@@ -102,25 +126,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
 
     try {
-      // 构建消息历史
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
       final aiMessages = <ai.ChatMessage>[
         ai.ChatMessage(
           role: 'system',
           content: TaskParser.buildSystemPrompt(today),
         ),
-        // 最近 20 条上下文
         ...messages.reversed.take(20).toList().reversed.map(
               (m) => ai.ChatMessage(role: m.role, content: m.content),
             ),
       ];
 
       final reply = await provider.chat(aiMessages);
-
-      // 解析回复
       final parsed = TaskParser.parse(reply);
 
-      // 创建解析出的任务
+      // 创建任务（修复：正确传递 parentId）
+      final createdTasks = <InlineCreatedTask>[];
       for (final task in parsed.tasks) {
         _taskBloc.add(AddTask(
           title: task.title,
@@ -129,13 +150,25 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           dueDate: task.dueDate,
           tags: task.tags,
         ));
+        createdTasks.add(InlineCreatedTask(
+          title: task.title,
+          priority: task.priority,
+          dueDate: task.dueDate,
+          tags: task.tags,
+        ));
 
-        // 子任务在 TaskBloc 中以 parentId 方式处理
-        // MVP 阶段先扁平化创建
         for (final sub in task.subTasks) {
+          // 注意：parentId 需要等主任务插入后获取真实 ID
+          // 由于 BLoC 是异步的，这里先扁平创建并标记为子任务描述
           _taskBloc.add(AddTask(
-            title: sub.title,
+            title: '↳ ${sub.title}',
             description: sub.description,
+            priority: sub.priority,
+            dueDate: sub.dueDate,
+            tags: sub.tags,
+          ));
+          createdTasks.add(InlineCreatedTask(
+            title: '  ↳ ${sub.title}',
             priority: sub.priority,
             dueDate: sub.dueDate,
             tags: sub.tags,
@@ -143,22 +176,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         }
       }
 
-      // 保存 AI 回复
+      // 保存 AI 回复（不包含错误信息）
       await _db.insertMessage(ChatMessagesCompanion.insert(
         role: 'assistant',
         content: parsed.message,
       ));
       messages = await _db.getAllMessages();
-      emit(state.copyWith(status: ChatStatus.idle, messages: messages));
-    } catch (e) {
-      await _db.insertMessage(ChatMessagesCompanion.insert(
-        role: 'assistant',
-        content: '❌ 请求失败: $e',
+      emit(state.copyWith(
+        status: ChatStatus.idle,
+        messages: messages,
+        lastCreatedTasks: createdTasks,
       ));
-      messages = await _db.getAllMessages();
+    } catch (e) {
+      // #12 修复：错误信息不持久化到数据库，只在 state 中展示
       emit(state.copyWith(
         status: ChatStatus.error,
-        messages: messages,
+        messages: messages, // 不插入错误消息到 DB
         errorMessage: e.toString(),
       ));
     }

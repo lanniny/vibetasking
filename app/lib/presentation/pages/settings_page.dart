@@ -111,6 +111,12 @@ class _SettingsPageState extends State<SettingsPage> {
                                   },
                                   child: const Text('设为当前'),
                                 ),
+                              // #9 连通性测试
+                              IconButton(
+                                icon: const Icon(Icons.wifi_tethering, size: 18),
+                                onPressed: () => _testConnection(config),
+                                tooltip: '测试连接',
+                              ),
                               IconButton(
                                 icon: const Icon(Icons.edit_outlined, size: 18),
                                 onPressed: () =>
@@ -120,6 +126,26 @@ class _SettingsPageState extends State<SettingsPage> {
                                 icon: const Icon(Icons.delete_outline,
                                     size: 18, color: Colors.red),
                                 onPressed: () async {
+                                  // #6 删除确认
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('确认删除'),
+                                      content: Text('确定要删除「${config.name}」吗？'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.pop(ctx, false),
+                                          child: const Text('取消'),
+                                        ),
+                                        FilledButton(
+                                          onPressed: () => Navigator.pop(ctx, true),
+                                          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                                          child: const Text('删除'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm != true) return;
                                   await pm.removeProvider(config.id);
                                   widget.onChanged();
                                   setState(() {});
@@ -135,6 +161,28 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _testConnection(AIProviderConfig config) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('正在测试连接...')),
+    );
+
+    final provider = pm.createProvider(config);
+    if (provider == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('无法创建 Provider 实例')),
+      );
+      return;
+    }
+
+    final ok = await provider.testConnection();
+    messenger.clearSnackBars();
+    messenger.showSnackBar(SnackBar(
+      content: Text(ok ? '✅ 连接成功！' : '❌ 连接失败，请检查配置'),
+      backgroundColor: ok ? Colors.green : Colors.red,
+    ));
   }
 
   IconData _providerIcon(String type) {
