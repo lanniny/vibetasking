@@ -16,11 +16,22 @@ import 'package:vibetasking/presentation/widgets/common/quick_add_dialog.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final db = AppDatabase();
-  final providerManager = ProviderManager();
-  await providerManager.load();
-
-  runApp(VibeTasKingApp(db: db, providerManager: providerManager));
+  try {
+    final db = AppDatabase();
+    final providerManager = ProviderManager();
+    await providerManager.load();
+    runApp(VibeTasKingApp(db: db, providerManager: providerManager));
+  } catch (e, stack) {
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(32),
+          child: SelectableText('启动错误:\n$e\n\n$stack',
+              style: const TextStyle(fontSize: 14, color: Colors.red)),
+        ),
+      ),
+    ));
+  }
 }
 
 class VibeTasKingApp extends StatelessWidget {
@@ -92,7 +103,6 @@ class _MainShellState extends State<MainShell> {
     ),
   ];
 
-  // #14 快捷键
   void _handleKey(KeyEvent event) {
     if (event is! KeyDownEvent) return;
     final ctrl = HardwareKeyboard.instance.isControlPressed;
@@ -125,7 +135,7 @@ class _MainShellState extends State<MainShell> {
 
   bool _handleKeyWrapper(KeyEvent event) {
     _handleKey(event);
-    return false; // 不拦截事件
+    return false;
   }
 
   @override
@@ -135,7 +145,6 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: Row(
         children: [
-          // 侧边栏
           NavigationRail(
             selectedIndex: _selectedIndex,
             onDestinationSelected: (i) => setState(() => _selectedIndex = i),
@@ -144,7 +153,6 @@ class _MainShellState extends State<MainShell> {
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Column(
                 children: [
-                  // #19 品牌 Logo
                   Container(
                     width: 40,
                     height: 40,
@@ -170,7 +178,6 @@ class _MainShellState extends State<MainShell> {
                 ],
               ),
             ),
-            // #20 全局快速创建 FAB
             trailing: Padding(
               padding: const EdgeInsets.only(top: 16),
               child: FloatingActionButton.small(
@@ -182,8 +189,6 @@ class _MainShellState extends State<MainShell> {
             destinations: _navItems,
           ),
           const VerticalDivider(width: 1, thickness: 1),
-
-          // 主内容区
           Expanded(
             child: _buildPage(),
           ),

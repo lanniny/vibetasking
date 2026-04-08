@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vibetasking/data/database/database.dart';
@@ -7,7 +6,6 @@ import 'task_state.dart';
 
 class TaskBloc extends Bloc<TaskEvent, TaskState> {
   final AppDatabase _db;
-  StreamSubscription<List<Task>>? _tasksSub;
 
   TaskBloc(this._db) : super(const TaskState()) {
     on<LoadTasks>(_onLoadTasks);
@@ -26,10 +24,6 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
 
   Future<void> _onLoadTasks(LoadTasks event, Emitter<TaskState> emit) async {
     emit(state.copyWith(status: TaskStatus.loading));
-    await _tasksSub?.cancel();
-    _tasksSub = _db.watchAllTasks().listen((_) {
-      if (!isClosed) add(LoadTasks());
-    });
     await _reload(emit);
   }
 
@@ -152,8 +146,5 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   }
 
   @override
-  Future<void> close() {
-    _tasksSub?.cancel();
-    return super.close();
-  }
+  Future<void> close() => super.close();
 }

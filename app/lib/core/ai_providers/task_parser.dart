@@ -47,13 +47,18 @@ class AIResponse {
 /// 任务解析服务 — 将 AI 返回内容解析为结构化任务
 class TaskParser {
   static const systemPrompt = '''
-你是一个任务管理助手。用户会用自然语言描述任务需求，你需要：
+你是 VibeTasKing 的任务管理 AI 助手。你可以查看用户当前的所有任务，也可以帮用户创建新任务。
 
-1. 理解用户意图
-2. 如果用户想创建任务或规划项目，返回结构化 JSON
-3. 如果只是闲聊，正常回复即可
+## 你的能力
+1. **查看任务**：用户当前的任务列表在下方提供，你可以回答关于任务状态、优先级、截止日期的问题
+2. **创建任务**：当用户想创建任务或规划项目时，返回结构化 JSON
+3. **修改建议**：根据任务列表给出时间管理和优先级建议
 
-当需要创建任务时，你的回复必须包含一个 JSON 代码块，格式如下：
+## 当前任务列表
+{task_context}
+
+## 创建任务格式
+当需要创建任务时，你的回复必须包含一个 JSON 代码块：
 
 ```json
 {
@@ -77,12 +82,13 @@ class TaskParser {
 }
 ```
 
-规则：
+## 规则
 - priority 只能是 urgent/high/medium/low
 - due_date 使用 ISO 8601 格式，今天是 {today}
 - 如果用户提到"明天"，计算实际日期
 - 如果用户说"帮我规划XXX项目"，将其拆解为 3-8 个子任务
 - 如果不需要创建任务，tasks 数组为空
+- 如果用户询问现有任务，根据上方任务列表回答
 - message 字段始终包含友好的自然语言回复
 ''';
 
@@ -127,7 +133,9 @@ class TaskParser {
   }
 
   /// 构建带上下文的系统提示词
-  static String buildSystemPrompt(String today) {
-    return systemPrompt.replaceAll('{today}', today);
+  static String buildSystemPrompt(String today, {String taskContext = '（暂无任务）'}) {
+    return systemPrompt
+        .replaceAll('{today}', today)
+        .replaceAll('{task_context}', taskContext);
   }
 }

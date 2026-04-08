@@ -127,10 +127,22 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
     try {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // 构建任务上下文，让 AI 能感知现有任务
+      final allTasks = await _db.getAllTasks();
+      final taskContext = allTasks.isEmpty
+          ? '（暂无任务）'
+          : allTasks.map((t) {
+              final due = t.dueDate != null
+                  ? ' | 截止: ${DateFormat('yyyy-MM-dd').format(t.dueDate!)}'
+                  : '';
+              return '- [${t.status}] ${t.title} (${t.priority})$due';
+            }).join('\n');
+
       final aiMessages = <ai.ChatMessage>[
         ai.ChatMessage(
           role: 'system',
-          content: TaskParser.buildSystemPrompt(today),
+          content: TaskParser.buildSystemPrompt(today, taskContext: taskContext),
         ),
         ...messages.reversed.take(20).toList().reversed.map(
               (m) => ai.ChatMessage(role: m.role, content: m.content),
