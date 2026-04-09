@@ -283,6 +283,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     fontSize: 11,
                   ),
                 ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () {
+                    Process.run('cmd', ['/c', 'start', 'https://github.com/lanniny/vibetasking']);
+                  },
+                  icon: const Icon(Icons.open_in_new, size: 14),
+                  label: const Text('GitHub'),
+                ),
               ],
             ),
           ),

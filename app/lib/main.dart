@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file in the project root.
 // https://github.com/lanniny/vibetasking
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -234,10 +236,23 @@ class _MainShellState extends State<MainShell> {
             ),
             trailing: Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: FloatingActionButton.small(
-                onPressed: () => QuickAddDialog.show(context),
-                tooltip: '快速创建 (Ctrl+N)',
-                child: const Icon(Icons.add),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton.small(
+                    onPressed: () => QuickAddDialog.show(context),
+                    tooltip: '快速创建 (Ctrl+N)',
+                    child: const Icon(Icons.add),
+                  ),
+                  const SizedBox(height: 8),
+                  IconButton(
+                    onPressed: () => Process.run(
+                        'cmd', ['/c', 'start', 'https://github.com/lanniny/vibetasking']),
+                    icon: const Icon(Icons.code, size: 18),
+                    tooltip: 'GitHub',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
               ),
             ),
             destinations: _navItems,
