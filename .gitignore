@@ -4,13 +4,16 @@ app/.dart_tool/
 app/.flutter-plugins
 app/.flutter-plugins-dependencies
 app/.packages
+app/.metadata
 app/windows/flutter/ephemeral/
 *.g.dart
 
-# IDE
+# IDE & Tools
 .idea/
 .vscode/
 *.iml
+.serena/
+.spec-workflow/
 
 # OS
 .DS_Store
@@ -19,6 +22,11 @@ Thumbs.db
 # Secrets
 *.env
 ai_providers.json
+app_settings.json
 
-# Vibe runtime outputs
+# Internal docs & runtime
+docs/
 outputs/
+
+# Release artifacts
+*.zip
