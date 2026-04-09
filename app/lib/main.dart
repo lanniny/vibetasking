@@ -12,6 +12,7 @@ import 'package:vibetasking/presentation/pages/board_page.dart';
 import 'package:vibetasking/presentation/pages/chat_page.dart';
 import 'package:vibetasking/presentation/pages/list_page.dart';
 import 'package:vibetasking/presentation/pages/settings_page.dart';
+import 'package:vibetasking/presentation/pages/timeline_page.dart';
 import 'package:vibetasking/presentation/widgets/common/quick_add_dialog.dart';
 
 void main() async {
@@ -139,6 +140,11 @@ class _MainShellState extends State<MainShell> {
       label: Text('列表'),
     ),
     NavigationRailDestination(
+      icon: Icon(Icons.timeline_outlined),
+      selectedIcon: Icon(Icons.timeline),
+      label: Text('时间线'),
+    ),
+    NavigationRailDestination(
       icon: Icon(Icons.settings_outlined),
       selectedIcon: Icon(Icons.settings),
       label: Text('设置'),
@@ -160,6 +166,8 @@ class _MainShellState extends State<MainShell> {
       setState(() => _selectedIndex = 2);
     } else if (event.logicalKey == LogicalKeyboardKey.digit4) {
       setState(() => _selectedIndex = 3);
+    } else if (event.logicalKey == LogicalKeyboardKey.digit5) {
+      setState(() => _selectedIndex = 4);
     }
   }
 
@@ -248,6 +256,8 @@ class _MainShellState extends State<MainShell> {
       case 2:
         return const ListPage();
       case 3:
+        return const TimelinePage();
+      case 4:
         return SettingsPage(
           providerManager: widget.providerManager,
           onChanged: () => setState(() {}),

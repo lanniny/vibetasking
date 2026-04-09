@@ -59,6 +59,44 @@ class _ChatPageState extends State<ChatPage> {
               const SizedBox(width: 8),
               Text('AI 任务助手', style: theme.textTheme.titleSmall),
               const Spacer(),
+              // 日报/周报快捷生成
+              PopupMenuButton<String>(
+                onSelected: (v) =>
+                    context.read<ChatBloc>().add(SendMessage(v)),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: '帮我生成今日工作日报，总结已完成、进行中和待办的任务',
+                    child: ListTile(
+                      leading: Icon(Icons.today, size: 20),
+                      title: Text('生成日报'),
+                      dense: true,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: '帮我生成本周工作周报，总结这周的任务完成情况、遇到的问题和下周计划',
+                    child: ListTile(
+                      leading: Icon(Icons.date_range, size: 20),
+                      title: Text('生成周报'),
+                      dense: true,
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: '分析我当前的任务列表，给出优先级和时间安排建议',
+                    child: ListTile(
+                      leading: Icon(Icons.lightbulb_outline, size: 20),
+                      title: Text('智能建议'),
+                      dense: true,
+                    ),
+                  ),
+                ],
+                child: Chip(
+                  avatar: Icon(Icons.auto_awesome,
+                      size: 16, color: theme.colorScheme.primary),
+                  label: const Text('AI 助手'),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: () {
                   showDialog(
