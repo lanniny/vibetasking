@@ -1,3 +1,5 @@
+import 'package:vibetasking/core/config/key_crypto.dart';
+
 /// AI Provider 统一抽象接口
 abstract class AIProvider {
   String get id;
@@ -60,22 +62,24 @@ class AIProviderConfig {
     );
   }
 
+  /// 序列化时加密 apiKey
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
         'type': type,
-        'apiKey': apiKey,
+        'apiKey': KeyCrypto.encrypt(apiKey),
         'baseUrl': baseUrl,
         'model': model,
         'isActive': isActive,
       };
 
+  /// 反序列化时解密 apiKey（兼容旧版明文）
   factory AIProviderConfig.fromJson(Map<String, dynamic> json) {
     return AIProviderConfig(
       id: json['id'] as String,
       name: json['name'] as String,
       type: json['type'] as String,
-      apiKey: json['apiKey'] as String,
+      apiKey: KeyCrypto.decrypt(json['apiKey'] as String),
       baseUrl: json['baseUrl'] as String,
       model: json['model'] as String,
       isActive: json['isActive'] as bool? ?? false,

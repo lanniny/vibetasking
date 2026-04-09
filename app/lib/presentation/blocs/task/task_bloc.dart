@@ -19,7 +19,19 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
 
   Future<void> _reload(Emitter<TaskState> emit) async {
     final tasks = await _db.getAllTasks();
-    emit(state.copyWith(status: TaskStatus.loaded, allTasks: tasks));
+    // 加载每个任务的标签
+    final tagMap = <int, List<String>>{};
+    for (final t in tasks) {
+      final tags = await _db.getTagsForTask(t.id);
+      if (tags.isNotEmpty) {
+        tagMap[t.id] = tags.map((tag) => tag.name).toList();
+      }
+    }
+    emit(state.copyWith(
+      status: TaskStatus.loaded,
+      allTasks: tasks,
+      taskTags: tagMap,
+    ));
   }
 
   Future<void> _onLoadTasks(LoadTasks event, Emitter<TaskState> emit) async {

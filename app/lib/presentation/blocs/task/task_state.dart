@@ -3,9 +3,13 @@ import 'package:vibetasking/data/database/database.dart';
 
 enum TaskStatus { initial, loading, loaded, error }
 
+/// Sentinel: 用于区分 "没传" vs "主动传 null 清除筛选"
+const _sentinel = '__KEEP__';
+
 class TaskState extends Equatable {
   final TaskStatus status;
   final List<Task> allTasks;
+  final Map<int, List<String>> taskTags; // taskId → tag names
   final String? errorMessage;
   final String? statusFilter;
   final String? priorityFilter;
@@ -16,6 +20,7 @@ class TaskState extends Equatable {
   const TaskState({
     this.status = TaskStatus.initial,
     this.allTasks = const [],
+    this.taskTags = const {},
     this.errorMessage,
     this.statusFilter,
     this.priorityFilter,
@@ -24,23 +29,34 @@ class TaskState extends Equatable {
     this.searchQuery = '',
   });
 
+  /// 获取任务的标签列表
+  List<String> tagsOf(int taskId) => taskTags[taskId] ?? [];
+
   TaskState copyWith({
     TaskStatus? status,
     List<Task>? allTasks,
+    Map<int, List<String>>? taskTags,
     String? errorMessage,
-    String? statusFilter,
-    String? priorityFilter,
-    String? tagFilter,
+    Object? statusFilter = _sentinel,
+    Object? priorityFilter = _sentinel,
+    Object? tagFilter = _sentinel,
     String? sortBy,
     String? searchQuery,
   }) {
     return TaskState(
       status: status ?? this.status,
       allTasks: allTasks ?? this.allTasks,
+      taskTags: taskTags ?? this.taskTags,
       errorMessage: errorMessage ?? this.errorMessage,
-      statusFilter: statusFilter,
-      priorityFilter: priorityFilter,
-      tagFilter: tagFilter,
+      statusFilter: statusFilter == _sentinel
+          ? this.statusFilter
+          : statusFilter as String?,
+      priorityFilter: priorityFilter == _sentinel
+          ? this.priorityFilter
+          : priorityFilter as String?,
+      tagFilter: tagFilter == _sentinel
+          ? this.tagFilter
+          : tagFilter as String?,
       sortBy: sortBy ?? this.sortBy,
       searchQuery: searchQuery ?? this.searchQuery,
     );
@@ -116,7 +132,7 @@ class TaskState extends Equatable {
 
   @override
   List<Object?> get props => [
-        status, allTasks, errorMessage, statusFilter,
+        status, allTasks, taskTags, errorMessage, statusFilter,
         priorityFilter, tagFilter, sortBy, searchQuery,
       ];
 }

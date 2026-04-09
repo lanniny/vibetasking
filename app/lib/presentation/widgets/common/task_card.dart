@@ -6,12 +6,14 @@ import 'package:vibetasking/presentation/widgets/common/task_detail_dialog.dart'
 
 class TaskCard extends StatelessWidget {
   final Task task;
+  final List<String> tags;
   final VoidCallback? onTap;
   final ValueChanged<String>? onStatusChanged;
 
   const TaskCard({
     super.key,
     required this.task,
+    this.tags = const [],
     this.onTap,
     this.onStatusChanged,
   });
@@ -84,6 +86,32 @@ class TaskCard extends StatelessWidget {
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                ),
+              ],
+
+              // 标签展示
+              if (tags.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 2,
+                  children: tags
+                      .map((t) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              t,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: theme.colorScheme.onSecondaryContainer,
+                              ),
+                            ),
+                          ))
+                      .toList(),
                 ),
               ],
 

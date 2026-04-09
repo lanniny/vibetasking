@@ -194,6 +194,7 @@ class _BoardColumn extends StatelessWidget {
                     itemCount: tasks.length,
                     itemBuilder: (context, index) {
                       final task = tasks[index];
+                      final tags = context.read<TaskBloc>().state.tagsOf(task.id);
                       return Draggable<Task>(
                         data: task,
                         feedback: Material(
@@ -201,15 +202,16 @@ class _BoardColumn extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           child: SizedBox(
                             width: 280,
-                            child: TaskCard(task: task),
+                            child: TaskCard(task: task, tags: tags),
                           ),
                         ),
                         childWhenDragging: Opacity(
                           opacity: 0.3,
-                          child: TaskCard(task: task),
+                          child: TaskCard(task: task, tags: tags),
                         ),
                         child: TaskCard(
                           task: task,
+                          tags: tags,
                           onStatusChanged: (newStatus) {
                             context.read<TaskBloc>().add(
                                   UpdateTaskStatus(

@@ -25,6 +25,8 @@ class _ChatPageState extends State<ChatPage> {
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+    // H6: 防止发送中重复提交
+    if (context.read<ChatBloc>().state.status == ChatStatus.sending) return;
     context.read<ChatBloc>().add(SendMessage(text));
     _controller.clear();
     _scrollToBottom();
@@ -180,34 +182,41 @@ class _ChatPageState extends State<ChatPage> {
         ),
 
         // 输入框
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: theme.cardTheme.color,
-            border: Border(
-              top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1)),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  decoration: const InputDecoration(
-                    hintText: '描述你的任务，AI 帮你安排...',
-                  ),
-                  maxLines: null,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
+        BlocBuilder<ChatBloc, ChatState>(
+          buildWhen: (prev, curr) => prev.status != curr.status,
+          builder: (context, chatState) {
+            final isSending = chatState.status == ChatStatus.sending;
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.cardTheme.color,
+                border: Border(
+                  top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.1)),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _send,
-                icon: const Icon(Icons.send_rounded),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      enabled: !isSending,
+                      decoration: const InputDecoration(
+                        hintText: '描述你的任务，AI 帮你安排...',
+                      ),
+                      maxLines: null,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: isSending ? null : _send,
+                    icon: const Icon(Icons.send_rounded),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ],
     );
