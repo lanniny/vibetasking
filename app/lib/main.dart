@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vibetasking/core/ai_providers/provider_manager.dart';
+import 'package:vibetasking/core/config/app_settings.dart';
 import 'package:vibetasking/core/theme/app_theme.dart';
 import 'package:vibetasking/data/database/database.dart';
 import 'package:vibetasking/presentation/blocs/chat/chat_bloc.dart';
@@ -20,7 +21,12 @@ void main() async {
     final db = AppDatabase();
     final providerManager = ProviderManager();
     await providerManager.load();
-    runApp(VibeTasKingApp(db: db, providerManager: providerManager));
+    final settings = await AppSettings.load();
+    runApp(VibeTasKingApp(
+      db: db,
+      providerManager: providerManager,
+      initialSettings: settings,
+    ));
   } catch (e, stack) {
     runApp(MaterialApp(
       home: Scaffold(
@@ -34,26 +40,54 @@ void main() async {
   }
 }
 
-class VibeTasKingApp extends StatelessWidget {
+class VibeTasKingApp extends StatefulWidget {
   final AppDatabase db;
   final ProviderManager providerManager;
+  final AppSettings initialSettings;
 
   const VibeTasKingApp({
     super.key,
     required this.db,
     required this.providerManager,
+    required this.initialSettings,
   });
 
   @override
+  State<VibeTasKingApp> createState() => _VibeTasKingAppState();
+}
+
+class _VibeTasKingAppState extends State<VibeTasKingApp> {
+  late ThemeMode _themeMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _themeMode = _parseThemeMode(widget.initialSettings.themeMode);
+  }
+
+  ThemeMode _parseThemeMode(String mode) {
+    switch (mode) {
+      case 'light': return ThemeMode.light;
+      case 'dark': return ThemeMode.dark;
+      default: return ThemeMode.system;
+    }
+  }
+
+  void _onThemeChanged(ThemeMode mode) {
+    setState(() => _themeMode = mode);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final taskBloc = TaskBloc(db)..add(LoadTasks());
+    final taskBloc = TaskBloc(widget.db)..add(LoadTasks());
 
     return MultiBlocProvider(
       providers: [
         BlocProvider<TaskBloc>.value(value: taskBloc),
         BlocProvider<ChatBloc>(
-          create: (_) =>
-              ChatBloc(db, providerManager, taskBloc)..add(LoadMessages()),
+          create: (_) => ChatBloc(
+              widget.db, widget.providerManager, taskBloc)
+            ..add(LoadMessages()),
         ),
       ],
       child: MaterialApp(
@@ -61,8 +95,11 @@ class VibeTasKingApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.system,
-        home: MainShell(providerManager: providerManager),
+        themeMode: _themeMode,
+        home: MainShell(
+          providerManager: widget.providerManager,
+          onThemeChanged: _onThemeChanged,
+        ),
       ),
     );
   }
@@ -70,8 +107,13 @@ class VibeTasKingApp extends StatelessWidget {
 
 class MainShell extends StatefulWidget {
   final ProviderManager providerManager;
+  final ValueChanged<ThemeMode> onThemeChanged;
 
-  const MainShell({super.key, required this.providerManager});
+  const MainShell({
+    super.key,
+    required this.providerManager,
+    required this.onThemeChanged,
+  });
 
   @override
   State<MainShell> createState() => _MainShellState();
@@ -209,6 +251,7 @@ class _MainShellState extends State<MainShell> {
         return SettingsPage(
           providerManager: widget.providerManager,
           onChanged: () => setState(() {}),
+          onThemeChanged: widget.onThemeChanged,
         );
       default:
         return const ChatPage();

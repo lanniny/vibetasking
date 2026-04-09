@@ -160,10 +160,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       final reply = await provider.chat(aiMessages);
       final parsed = TaskParser.parse(reply);
 
-      // 创建任务（修复：正确传递 parentId）
+      // 创建任务（真正的父子层级）
       final createdTasks = <InlineCreatedTask>[];
       for (final task in parsed.tasks) {
-        _taskBloc.add(AddTask(
+        final parentEvent = AddTask(
           title: task.title,
           description: task.description,
           priority: task.priority,
@@ -171,7 +171,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           startTime: task.startTime,
           endTime: task.endTime,
           tags: task.tags,
-        ));
+        );
         createdTasks.add(InlineCreatedTask(
           title: task.title,
           priority: task.priority,
@@ -179,21 +179,31 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           tags: task.tags,
         ));
 
-        for (final sub in task.subTasks) {
-          // 注意：parentId 需要等主任务插入后获取真实 ID
-          // 由于 BLoC 是异步的，这里先扁平创建并标记为子任务描述
-          _taskBloc.add(AddTask(
-            title: '↳ ${sub.title}',
-            description: sub.description,
-            priority: sub.priority,
-            dueDate: sub.dueDate,
-            tags: sub.tags,
-          ));
-          createdTasks.add(InlineCreatedTask(
-            title: '  ↳ ${sub.title}',
-            priority: sub.priority,
-            dueDate: sub.dueDate,
-            tags: sub.tags,
+        if (task.subTasks.isEmpty) {
+          _taskBloc.add(parentEvent);
+        } else {
+          // H3: 用 AddTaskWithSubTasks 原子化创建，parentId 正确传递
+          final subEvents = task.subTasks.map((sub) {
+            createdTasks.add(InlineCreatedTask(
+              title: '  ↳ ${sub.title}',
+              priority: sub.priority,
+              dueDate: sub.dueDate,
+              tags: sub.tags,
+            ));
+            return AddTask(
+              title: sub.title,
+              description: sub.description,
+              priority: sub.priority,
+              dueDate: sub.dueDate,
+              startTime: sub.startTime,
+              endTime: sub.endTime,
+              tags: sub.tags,
+            );
+          }).toList();
+
+          _taskBloc.add(AddTaskWithSubTasks(
+            parent: parentEvent,
+            subTasks: subEvents,
           ));
         }
       }

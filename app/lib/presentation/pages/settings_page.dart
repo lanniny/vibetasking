@@ -1,17 +1,29 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:vibetasking/core/ai_providers/ai_provider.dart';
 import 'package:vibetasking/core/ai_providers/provider_manager.dart';
 import 'package:vibetasking/core/config/app_settings.dart';
+import 'package:vibetasking/data/database/database.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:vibetasking/presentation/blocs/task/task_bloc.dart';
+import 'package:vibetasking/presentation/blocs/task/task_state.dart';
 
 class SettingsPage extends StatefulWidget {
   final ProviderManager providerManager;
   final VoidCallback onChanged;
+  final ValueChanged<ThemeMode>? onThemeChanged;
 
   const SettingsPage({
     super.key,
     required this.providerManager,
     required this.onChanged,
+    this.onThemeChanged,
   });
 
   @override
@@ -51,16 +63,66 @@ class _SettingsPageState extends State<SettingsPage> {
           // 功能设置
           if (_appSettings != null) ...[
             Card(
-              child: SwitchListTile(
-                title: const Text('精确时间安排'),
-                subtitle: const Text('开启后 AI 会为任务安排具体时间段（如 09:00-10:30）'),
-                secondary: const Icon(Icons.schedule),
-                value: _appSettings!.enableTimeScheduling,
-                onChanged: (v) async {
-                  _appSettings = _appSettings!.copyWith(enableTimeScheduling: v);
-                  await _appSettings!.save();
-                  setState(() {});
-                },
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('精确时间安排'),
+                    subtitle: const Text('AI 为任务安排具体时间段（如 09:00-10:30）'),
+                    secondary: const Icon(Icons.schedule),
+                    value: _appSettings!.enableTimeScheduling,
+                    onChanged: (v) async {
+                      _appSettings = _appSettings!.copyWith(enableTimeScheduling: v);
+                      await _appSettings!.save();
+                      setState(() {});
+                    },
+                  ),
+                  const Divider(height: 1),
+                  // M1: 深色模式切换
+                  ListTile(
+                    leading: const Icon(Icons.dark_mode),
+                    title: const Text('主题模式'),
+                    trailing: SegmentedButton<String>(
+                      selected: {_appSettings!.themeMode},
+                      onSelectionChanged: (v) async {
+                        final mode = v.first;
+                        _appSettings = _appSettings!.copyWith(themeMode: mode);
+                        await _appSettings!.save();
+                        setState(() {});
+                        final themeMode = switch (mode) {
+                          'light' => ThemeMode.light,
+                          'dark' => ThemeMode.dark,
+                          _ => ThemeMode.system,
+                        };
+                        widget.onThemeChanged?.call(themeMode);
+                      },
+                      segments: const [
+                        ButtonSegment(value: 'system', label: Text('跟随系统')),
+                        ButtonSegment(value: 'light', label: Text('浅色')),
+                        ButtonSegment(value: 'dark', label: Text('深色')),
+                      ],
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // M8: 快捷键帮助
+                  ListTile(
+                    leading: const Icon(Icons.keyboard),
+                    title: const Text('快捷键'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _showShortcutsDialog(),
+                  ),
+                  const Divider(height: 1),
+                  // H7: 数据导出
+                  ListTile(
+                    leading: const Icon(Icons.download),
+                    title: const Text('导出任务数据'),
+                    subtitle: const Text('导出为 JSON 文件'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _exportData(),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -195,6 +257,73 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  void _showShortcutsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('快捷键'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ShortcutRow('Ctrl + N', '快速创建任务'),
+            _ShortcutRow('Ctrl + 1', '切换到聊天'),
+            _ShortcutRow('Ctrl + 2', '切换到看板'),
+            _ShortcutRow('Ctrl + 3', '切换到列表'),
+            _ShortcutRow('Ctrl + 4', '切换到设置'),
+            _ShortcutRow('Enter', '发送聊天消息'),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportData() async {
+    final taskState = context.read<TaskBloc>().state;
+    final tasks = taskState.allTasks.map((t) => {
+          'id': t.id,
+          'title': t.title,
+          'description': t.description,
+          'status': t.status,
+          'priority': t.priority,
+          'dueDate': t.dueDate?.toIso8601String(),
+          'startTime': t.startTime?.toIso8601String(),
+          'endTime': t.endTime?.toIso8601String(),
+          'parentId': t.parentId,
+          'tags': taskState.tagsOf(t.id),
+          'createdAt': t.createdAt.toIso8601String(),
+        }).toList();
+
+    final json = const JsonEncoder.withIndent('  ').convert({
+      'exportedAt': DateTime.now().toIso8601String(),
+      'taskCount': tasks.length,
+      'tasks': tasks,
+    });
+
+    final dir = await getApplicationSupportDirectory();
+    final fileName = 'vibetasking_export_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.json';
+    final file = File(p.join(dir.path, fileName));
+    await file.writeAsString(json);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('已导出到: ${file.path}'),
+      duration: const Duration(seconds: 5),
+      action: SnackBarAction(
+        label: '打开目录',
+        onPressed: () {
+          Process.run('explorer', [dir.path]);
+        },
+      ),
+    ));
   }
 
   Future<void> _testConnection(AIProviderConfig config) async {
@@ -353,5 +482,33 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     widget.onChanged();
     setState(() {});
+  }
+}
+
+class _ShortcutRow extends StatelessWidget {
+  final String shortcut;
+  final String description;
+  const _ShortcutRow(this.shortcut, this.description);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(shortcut,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+          ),
+          const SizedBox(width: 12),
+          Text(description),
+        ],
+      ),
+    );
   }
 }

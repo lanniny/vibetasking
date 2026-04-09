@@ -35,6 +35,17 @@ class AddTask extends TaskEvent {
       [title, description, priority, dueDate, startTime, endTime, tags, parentId];
 }
 
+/// 原子化创建父任务 + 子任务（解决 parentId 问题）
+class AddTaskWithSubTasks extends TaskEvent {
+  final AddTask parent;
+  final List<AddTask> subTasks;
+
+  const AddTaskWithSubTasks({required this.parent, required this.subTasks});
+
+  @override
+  List<Object?> get props => [parent, subTasks];
+}
+
 class EditTask extends TaskEvent {
   final int taskId;
   final String? title;

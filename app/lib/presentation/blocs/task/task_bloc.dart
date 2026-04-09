@@ -10,6 +10,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
   TaskBloc(this._db) : super(const TaskState()) {
     on<LoadTasks>(_onLoadTasks);
     on<AddTask>(_onAddTask);
+    on<AddTaskWithSubTasks>(_onAddTaskWithSubTasks);
     on<EditTask>(_onEditTask);
     on<UpdateTaskStatus>(_onUpdateTaskStatus);
     on<DeleteTask>(_onDeleteTask);
@@ -61,6 +62,42 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
         status: TaskStatus.error,
         errorMessage: e.toString(),
       ));
+    }
+  }
+
+  Future<void> _onAddTaskWithSubTasks(
+    AddTaskWithSubTasks event,
+    Emitter<TaskState> emit,
+  ) async {
+    try {
+      final p = event.parent;
+      final parentId = await _db.insertTask(TasksCompanion.insert(
+        title: p.title,
+        description: Value(p.description),
+        priority: Value(p.priority),
+        dueDate: Value(p.dueDate),
+        startTime: Value(p.startTime),
+        endTime: Value(p.endTime),
+      ));
+      if (p.tags.isNotEmpty) await _setTagsByName(parentId, p.tags);
+
+      // 用真实 parentId 创建子任务
+      for (final s in event.subTasks) {
+        final subId = await _db.insertTask(TasksCompanion.insert(
+          title: s.title,
+          description: Value(s.description),
+          priority: Value(s.priority),
+          dueDate: Value(s.dueDate),
+          startTime: Value(s.startTime),
+          endTime: Value(s.endTime),
+          parentId: Value(parentId),
+        ));
+        if (s.tags.isNotEmpty) await _setTagsByName(subId, s.tags);
+      }
+
+      await _reload(emit);
+    } catch (e) {
+      emit(state.copyWith(status: TaskStatus.error, errorMessage: e.toString()));
     }
   }
 
