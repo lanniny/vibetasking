@@ -254,6 +254,38 @@ class _SettingsPageState extends State<SettingsPage> {
                     },
                   ),
           ),
+
+          // 关于信息
+          const SizedBox(height: 16),
+          Center(
+            child: Column(
+              children: [
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  'VibeTasKing v1.0.0',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Copyright \u00a9 2026 lanniny. All rights reserved.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Licensed under the MIT License',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

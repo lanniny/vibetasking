@@ -1,7 +1,8 @@
 name: vibetasking
-description: "VibeTasKing - AI驱动的任务管理桌面应用"
+description: "VibeTasKing - AI-Powered Task Manager | Copyright (c) 2026 lanniny"
 publish_to: 'none'
 version: 1.0.0+1
+homepage: https://github.com/lanniny/vibetasking
 
 environment:
   sdk: ^3.11.4

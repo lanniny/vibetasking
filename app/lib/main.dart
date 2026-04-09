@@ -1,3 +1,7 @@
+// Copyright (c) 2026 lanniny. All rights reserved.
+// Licensed under the MIT License. See LICENSE file in the project root.
+// https://github.com/lanniny/vibetasking
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
