@@ -14,6 +14,8 @@ class AddTask extends TaskEvent {
   final String? description;
   final String priority;
   final DateTime? dueDate;
+  final DateTime? startTime;
+  final DateTime? endTime;
   final List<String> tags;
   final int? parentId;
 
@@ -22,13 +24,15 @@ class AddTask extends TaskEvent {
     this.description,
     this.priority = 'medium',
     this.dueDate,
+    this.startTime,
+    this.endTime,
     this.tags = const [],
     this.parentId,
   });
 
   @override
   List<Object?> get props =>
-      [title, description, priority, dueDate, tags, parentId];
+      [title, description, priority, dueDate, startTime, endTime, tags, parentId];
 }
 
 class EditTask extends TaskEvent {

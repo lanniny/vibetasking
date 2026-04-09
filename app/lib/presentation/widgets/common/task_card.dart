@@ -55,6 +55,25 @@ class TaskCard extends StatelessWidget {
                 ],
               ),
 
+              // 时间段显示
+              if (task.startTime != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 13,
+                        color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatTimeRange(task.startTime!, task.endTime),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
               // #10 描述预览
               if (task.description != null && task.description!.isNotEmpty) ...[
                 const SizedBox(height: 4),
@@ -105,6 +124,13 @@ class TaskCard extends StatelessWidget {
   }
 
   bool _isOverdue(DateTime date) => date.isBefore(DateTime.now());
+
+  String _formatTimeRange(DateTime start, DateTime? end) {
+    final sf = '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+    if (end == null) return sf;
+    final ef = '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+    return '$sf - $ef';
+  }
 }
 
 class _PriorityChip extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:vibetasking/core/ai_providers/ai_provider.dart';
 import 'package:vibetasking/core/ai_providers/provider_manager.dart';
+import 'package:vibetasking/core/config/app_settings.dart';
 
 class SettingsPage extends StatefulWidget {
   final ProviderManager providerManager;
@@ -19,6 +20,18 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   ProviderManager get pm => widget.providerManager;
+  AppSettings? _appSettings;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final s = await AppSettings.load();
+    setState(() => _appSettings = s);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,20 +44,41 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题 + 添加按钮
+          // 页面标题
+          Text('设置', style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 20),
+
+          // 功能设置
+          if (_appSettings != null) ...[
+            Card(
+              child: SwitchListTile(
+                title: const Text('精确时间安排'),
+                subtitle: const Text('开启后 AI 会为任务安排具体时间段（如 09:00-10:30）'),
+                secondary: const Icon(Icons.schedule),
+                value: _appSettings!.enableTimeScheduling,
+                onChanged: (v) async {
+                  _appSettings = _appSettings!.copyWith(enableTimeScheduling: v);
+                  await _appSettings!.save();
+                  setState(() {});
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // Provider 标题
           Row(
             children: [
-              Text('AI Provider 设置',
-                  style: theme.textTheme.headlineSmall),
+              Text('AI Provider', style: theme.textTheme.titleMedium),
               const Spacer(),
               FilledButton.icon(
                 onPressed: () => _showProviderDialog(),
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('添加 Provider'),
+                label: const Text('添加'),
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
 
           // Provider 列表
           Expanded(

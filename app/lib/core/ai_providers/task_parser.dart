@@ -7,6 +7,8 @@ class ParsedTask {
   final String? description;
   final String priority; // urgent/high/medium/low
   final DateTime? dueDate;
+  final DateTime? startTime; // 精确开始时间
+  final DateTime? endTime;   // 精确结束时间
   final List<String> tags;
   final List<ParsedTask> subTasks;
 
@@ -15,6 +17,8 @@ class ParsedTask {
     this.description,
     this.priority = 'medium',
     this.dueDate,
+    this.startTime,
+    this.endTime,
     this.tags = const [],
     this.subTasks = const [],
   });
@@ -26,6 +30,12 @@ class ParsedTask {
       priority: json['priority'] as String? ?? 'medium',
       dueDate: json['due_date'] != null
           ? DateTime.tryParse(json['due_date'] as String)
+          : null,
+      startTime: json['start_time'] != null
+          ? DateTime.tryParse(json['start_time'] as String)
+          : null,
+      endTime: json['end_time'] != null
+          ? DateTime.tryParse(json['end_time'] as String)
           : null,
       tags: (json['tags'] as List?)?.cast<String>() ?? [],
       subTasks: (json['sub_tasks'] as List?)
@@ -85,6 +95,9 @@ class TaskParser {
 ## 当前任务列表
 {task_context}
 
+## 精确时间安排
+{time_scheduling_hint}
+
 ## JSON 响应格式
 当需要操作任务时，你的回复必须包含一个 JSON 代码块：
 
@@ -97,8 +110,10 @@ class TaskParser {
       "description": "描述（可选）",
       "priority": "urgent|high|medium|low",
       "due_date": "2026-04-10",
+      "start_time": "2026-04-10T09:00:00（精确开始时间，仅时间安排模式）",
+      "end_time": "2026-04-10T10:30:00（精确结束时间，仅时间安排模式）",
       "tags": ["标签"],
-      "sub_tasks": [{"title": "子任务", "priority": "medium", "tags": []}]
+      "sub_tasks": [{"title": "子任务", "priority": "medium", "start_time": "...", "end_time": "...", "tags": []}]
     }
   ],
   "actions": [
@@ -164,11 +179,22 @@ class TaskParser {
     );
   }
 
+  static const _timeOn = '''已开启。创建任务时，你必须为每个任务安排具体的时间段（start_time 和 end_time），
+根据任务的优先级和预估工作量合理安排。例如上午安排重要任务，下午安排常规任务。
+时间格式为 ISO 8601（如 2026-04-10T09:00:00）。如果用户没指定具体时间，你要智能推荐。''';
+
+  static const _timeOff = '''未开启。不需要设置 start_time 和 end_time 字段。''';
+
   /// 构建系统提示词
-  static String buildSystemPrompt(String today,
-      {String taskContext = '（暂无任务）'}) {
+  static String buildSystemPrompt(
+    String today, {
+    String taskContext = '（暂无任务）',
+    bool enableTimeScheduling = false,
+  }) {
     return systemPrompt
         .replaceAll('{today}', today)
-        .replaceAll('{task_context}', taskContext);
+        .replaceAll('{task_context}', taskContext)
+        .replaceAll('{time_scheduling_hint}',
+            enableTimeScheduling ? _timeOn : _timeOff);
   }
 }

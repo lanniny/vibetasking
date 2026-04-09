@@ -16,6 +16,8 @@ class Tasks extends Table {
   TextColumn get status => text().withDefault(const Constant('todo'))();
   TextColumn get priority => text().withDefault(const Constant('medium'))();
   DateTimeColumn get dueDate => dateTime().nullable()();
+  DateTimeColumn get startTime => dateTime().nullable()();
+  DateTimeColumn get endTime => dateTime().nullable()();
   IntColumn get parentId => integer().nullable().references(Tasks, #id)();
   DateTimeColumn get createdAt =>
       dateTime().withDefault(currentDateAndTime)();
@@ -53,7 +55,17 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (migrator, from, to) async {
+          if (from < 2) {
+            await migrator.addColumn(tasks, tasks.startTime);
+            await migrator.addColumn(tasks, tasks.endTime);
+          }
+        },
+      );
 
   // ── Task CRUD ──
 

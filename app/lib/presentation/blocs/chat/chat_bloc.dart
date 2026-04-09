@@ -6,6 +6,7 @@ import 'package:vibetasking/data/database/database.dart';
 import 'package:vibetasking/core/ai_providers/ai_provider.dart' as ai;
 import 'package:vibetasking/core/ai_providers/provider_manager.dart';
 import 'package:vibetasking/core/ai_providers/task_parser.dart';
+import 'package:vibetasking/core/config/app_settings.dart';
 import 'package:vibetasking/presentation/blocs/task/task_bloc.dart';
 import 'package:vibetasking/presentation/blocs/task/task_event.dart';
 
@@ -139,10 +140,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               return '- id=${t.id} [${t.status}] ${t.title} (${t.priority})$due';
             }).join('\n');
 
+      // 读取时间安排设置
+      final settings = await AppSettings.load();
+
       final aiMessages = <ai.ChatMessage>[
         ai.ChatMessage(
           role: 'system',
-          content: TaskParser.buildSystemPrompt(today, taskContext: taskContext),
+          content: TaskParser.buildSystemPrompt(
+            today,
+            taskContext: taskContext,
+            enableTimeScheduling: settings.enableTimeScheduling,
+          ),
         ),
         ...messages.reversed.take(20).toList().reversed.map(
               (m) => ai.ChatMessage(role: m.role, content: m.content),
@@ -160,6 +168,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           description: task.description,
           priority: task.priority,
           dueDate: task.dueDate,
+          startTime: task.startTime,
+          endTime: task.endTime,
           tags: task.tags,
         ));
         createdTasks.add(InlineCreatedTask(
