@@ -128,7 +128,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     try {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-      // 构建任务上下文，让 AI 能感知现有任务
+      // 构建任务上下文（含 ID），让 AI 能感知并操作现有任务
       final allTasks = await _db.getAllTasks();
       final taskContext = allTasks.isEmpty
           ? '（暂无任务）'
@@ -136,7 +136,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               final due = t.dueDate != null
                   ? ' | 截止: ${DateFormat('yyyy-MM-dd').format(t.dueDate!)}'
                   : '';
-              return '- [${t.status}] ${t.title} (${t.priority})$due';
+              return '- id=${t.id} [${t.status}] ${t.title} (${t.priority})$due';
             }).join('\n');
 
       final aiMessages = <ai.ChatMessage>[
@@ -188,7 +188,32 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         }
       }
 
-      // 保存 AI 回复（不包含错误信息）
+      // 执行 actions（删除/修改任务）
+      for (final action in parsed.actions) {
+        switch (action.type) {
+          case 'delete':
+            _taskBloc.add(DeleteTask(taskId: action.taskId));
+            break;
+          case 'update_status':
+            if (action.value != null) {
+              _taskBloc.add(UpdateTaskStatus(
+                taskId: action.taskId,
+                newStatus: action.value!,
+              ));
+            }
+            break;
+          case 'update_priority':
+            if (action.value != null) {
+              _taskBloc.add(EditTask(
+                taskId: action.taskId,
+                priority: action.value,
+              ));
+            }
+            break;
+        }
+      }
+
+      // 保存 AI 回复
       await _db.insertMessage(ChatMessagesCompanion.insert(
         role: 'assistant',
         content: parsed.message,
