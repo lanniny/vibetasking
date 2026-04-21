@@ -17,19 +17,30 @@ class ClaudeProvider implements AIProvider {
   @override
   String get type => 'claude';
 
+  /// 智能规范化 Base URL：自动补全 /v1，去尾部斜杠
+  static String _normalizeBaseUrl(String rawUrl) {
+    var url = rawUrl.trim();
+    if (url.isEmpty) return 'https://api.anthropic.com/v1';
+    while (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    if (url.endsWith('/messages')) {
+      url = url.substring(0, url.length - '/messages'.length);
+    }
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      final path = uri.path;
+      if (!RegExp(r'/v\d').hasMatch(path) && !path.contains('/api')) {
+        url = '$url/v1';
+      }
+    }
+    return url;
+  }
+
   @override
   Future<String> chat(List<ChatMessage> messages) async {
-    var baseUrl = config.baseUrl.isEmpty
-        ? 'https://api.anthropic.com/v1'
-        : config.baseUrl;
-    // 去掉尾部斜杠
-    if (baseUrl.endsWith('/')) {
-      baseUrl = baseUrl.substring(0, baseUrl.length - 1);
-    }
-
-    final endpoint = baseUrl.endsWith('/messages')
-        ? baseUrl
-        : '$baseUrl/messages';
+    final baseUrl = _normalizeBaseUrl(config.baseUrl);
+    final endpoint = '$baseUrl/messages';
     final url = Uri.parse(endpoint);
 
     // 提取 system message

@@ -67,30 +67,62 @@ class ParsedAction {
   }
 }
 
+/// AI 返回的账单记录
+class ParsedBill {
+  final double amount;
+  final String type; // income / expense
+  final String? category;
+  final String? description;
+  final DateTime? date;
+
+  const ParsedBill({
+    required this.amount,
+    required this.type,
+    this.category,
+    this.description,
+    this.date,
+  });
+
+  factory ParsedBill.fromJson(Map<String, dynamic> json) {
+    return ParsedBill(
+      amount: (json['amount'] as num).toDouble(),
+      type: json['type'] as String? ?? 'expense',
+      category: json['category'] as String?,
+      description: json['description'] as String?,
+      date: json['date'] != null
+          ? DateTime.tryParse(json['date'] as String)
+          : null,
+    );
+  }
+}
+
 /// AI 回复解析结果
 class AIResponse {
   final String message;
   final List<ParsedTask> tasks;
   final List<ParsedAction> actions;
+  final List<ParsedBill> bills;
 
   const AIResponse({
     required this.message,
     this.tasks = const [],
     this.actions = const [],
+    this.bills = const [],
   });
 }
 
 /// 任务解析服务
 class TaskParser {
   static const systemPrompt = '''
-你是 VibeTasKing 的任务管理 AI 助手。你可以查看、创建、修改、删除用户的任务。
+你是 VibeTasKing 的任务管理与记账 AI 助手。你可以查看、创建、修改、删除用户的任务，还可以帮用户记账。
 
 ## 你的能力
 1. **查看任务**：根据下方任务列表回答问题
 2. **创建任务**：通过 tasks 数组创建新任务
 3. **删除任务**：通过 actions 数组删除任务（需要 task_id）
 4. **修改任务**：通过 actions 数组修改任务状态或优先级
-5. **智能建议**：根据任务列表给出时间管理建议
+5. **记账**：通过 bills 数组创建收支记录
+6. **智能建议**：根据任务列表给出时间管理建议
 
 ## 当前任务列表
 {task_context}
@@ -98,8 +130,11 @@ class TaskParser {
 ## 精确时间安排
 {time_scheduling_hint}
 
+## 账单类别
+{bill_categories}
+
 ## JSON 响应格式
-当需要操作任务时，你的回复必须包含一个 JSON 代码块：
+当需要操作任务或记账时，你的回复必须包含一个 JSON 代码块：
 
 ```json
 {
@@ -120,6 +155,15 @@ class TaskParser {
     {"type": "delete", "task_id": 1},
     {"type": "update_status", "task_id": 2, "value": "done"},
     {"type": "update_priority", "task_id": 3, "value": "urgent"}
+  ],
+  "bills": [
+    {
+      "amount": 35.0,
+      "type": "expense",
+      "category": "餐饮",
+      "description": "午饭",
+      "date": "2026-04-10"
+    }
   ]
 }
 ```
@@ -129,12 +173,22 @@ class TaskParser {
 - `update_status`：修改任务状态，value 可选 todo / in_progress / done
 - `update_priority`：修改优先级，value 可选 urgent / high / medium / low
 
+## 记账说明
+- bills 数组用于创建收支记录
+- type：expense（支出）或 income（收入）
+- category：从上方账单类别中选择匹配的类别名称
+- amount：金额，正数
+- date：日期，ISO 8601 格式
+- 用户说"午饭花了35" → 创建支出记录，类别"餐饮"
+- 用户说"收到工资8000" → 创建收入记录，类别"工资"
+- 用户说"打车花了20" → 创建支出记录，类别"交通"
+
 ## 规则
 - task_id 从上方任务列表中获取，每个任务的 id 已标注
 - 用户说"删掉所有待办"→ 对所有 status=todo 的任务生成 delete action
 - 用户说"把XX标记为完成"→ 生成 update_status action
 - 用户说"创建任务"→ 在 tasks 数组中添加
-- 不需要操作时 tasks 和 actions 都为空数组
+- 不需要操作时 tasks、actions、bills 都为空数组
 - priority 只能是 urgent/high/medium/low
 - due_date 用 ISO 8601 格式，今天是 {today}
 - 如果用户提到"明天"，计算实际日期
@@ -176,6 +230,10 @@ class TaskParser {
               ?.map((e) => ParsedAction.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      bills: (json['bills'] as List?)
+              ?.map((e) => ParsedBill.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 
@@ -190,11 +248,13 @@ class TaskParser {
     String today, {
     String taskContext = '（暂无任务）',
     bool enableTimeScheduling = false,
+    String billCategories = '（暂无类别）',
   }) {
     return systemPrompt
         .replaceAll('{today}', today)
         .replaceAll('{task_context}', taskContext)
         .replaceAll('{time_scheduling_hint}',
-            enableTimeScheduling ? _timeOn : _timeOff);
+            enableTimeScheduling ? _timeOn : _timeOff)
+        .replaceAll('{bill_categories}', billCategories);
   }
 }

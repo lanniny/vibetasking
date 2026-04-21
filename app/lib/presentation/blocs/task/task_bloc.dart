@@ -112,6 +112,12 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
         priority: Value(event.priority ?? task.priority),
         dueDate: Value(event.clearDueDate ? null : (event.dueDate ?? task.dueDate)),
         parentId: Value(task.parentId),
+        workingDir: Value(event.clearWorkingDir
+            ? null
+            : (event.workingDir ?? task.workingDir)),
+        aiPrompt: Value(event.clearAiPrompt
+            ? null
+            : (event.aiPrompt ?? task.aiPrompt)),
         createdAt: Value(task.createdAt),
         updatedAt: Value(DateTime.now()),
       ));
@@ -159,11 +165,7 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     DeleteTask event,
     Emitter<TaskState> emit,
   ) async {
-    // 同时删除子任务
-    final subs = await _db.getSubTasks(event.taskId);
-    for (final sub in subs) {
-      await _db.deleteTask(sub.id);
-    }
+    // deleteTask 内部已经在事务中级联清理子任务、TaskTags、Bills 关联
     await _db.deleteTask(event.taskId);
     await _reload(emit);
   }

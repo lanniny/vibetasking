@@ -29,28 +29,40 @@ class TaskDetailDialog extends StatefulWidget {
 class _TaskDetailDialogState extends State<TaskDetailDialog> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _descCtrl;
+  late final TextEditingController _workingDirCtrl;
+  late final TextEditingController _aiPromptCtrl;
   late String _status;
   late String _priority;
   DateTime? _dueDate;
+  bool _showYoloSection = false;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.task.title);
     _descCtrl = TextEditingController(text: widget.task.description ?? '');
+    _workingDirCtrl =
+        TextEditingController(text: widget.task.workingDir ?? '');
+    _aiPromptCtrl = TextEditingController(text: widget.task.aiPrompt ?? '');
     _status = widget.task.status;
     _priority = widget.task.priority;
     _dueDate = widget.task.dueDate;
+    _showYoloSection =
+        widget.task.workingDir != null || widget.task.aiPrompt != null;
   }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
     _descCtrl.dispose();
+    _workingDirCtrl.dispose();
+    _aiPromptCtrl.dispose();
     super.dispose();
   }
 
   void _save() {
+    final wdText = _workingDirCtrl.text.trim();
+    final promptText = _aiPromptCtrl.text.trim();
     context.read<TaskBloc>().add(EditTask(
           taskId: widget.task.id,
           title: _titleCtrl.text,
@@ -59,6 +71,10 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
           priority: _priority,
           dueDate: _dueDate,
           clearDueDate: _dueDate == null && widget.task.dueDate != null,
+          workingDir: wdText.isEmpty ? null : wdText,
+          clearWorkingDir: wdText.isEmpty && widget.task.workingDir != null,
+          aiPrompt: promptText.isEmpty ? null : promptText,
+          clearAiPrompt: promptText.isEmpty && widget.task.aiPrompt != null,
         ));
     Navigator.pop(context);
   }
@@ -94,7 +110,7 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
 
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 720),
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -128,6 +144,12 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
               ),
               const SizedBox(height: 16),
 
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
               // 标题
               TextField(
                 controller: _titleCtrl,
@@ -210,6 +232,83 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
               ),
               const SizedBox(height: 8),
 
+              const SizedBox(height: 12),
+
+              // Claude YOLO 配置区（可展开）
+              InkWell(
+                onTap: () =>
+                    setState(() => _showYoloSection = !_showYoloSection),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _showYoloSection
+                            ? Icons.expand_less
+                            : Icons.expand_more,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(Icons.auto_awesome,
+                          size: 16, color: Colors.purple),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Claude YOLO 配置',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.purple,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (_showYoloSection) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _workingDirCtrl,
+                  decoration: const InputDecoration(
+                    labelText: '工作目录 (可选)',
+                    hintText: 'C:/projects/my-app',
+                    prefixIcon: Icon(Icons.folder_outlined, size: 18),
+                    isDense: true,
+                  ),
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _aiPromptCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'AI 指令模板 (可选)',
+                    hintText: '给 Claude 的额外指令，留空则用默认 prompt',
+                    alignLabelWithHint: true,
+                    isDense: true,
+                  ),
+                  maxLines: 3,
+                  minLines: 2,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '💡 在任务卡片的 ⚡ 按钮可一键 YOLO 执行',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                if (widget.task.aiLastRunAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '上次执行：${DateFormat('yyyy-MM-dd HH:mm').format(widget.task.aiLastRunAt!)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color:
+                          theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ],
+              const SizedBox(height: 12),
+
               // 创建时间
               Text(
                 '创建于 ${DateFormat('yyyy-MM-dd HH:mm').format(widget.task.createdAt)}',
@@ -217,8 +316,11 @@ class _TaskDetailDialogState extends State<TaskDetailDialog> {
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ),
-
-              const Spacer(),
+                ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
 
               // 操作按钮
               Row(

@@ -17,17 +17,33 @@ class OpenAICompatibleProvider implements AIProvider {
   @override
   String get type => config.type;
 
+  /// 智能规范化 Base URL，自动补全 /v1 路径
+  static String _normalizeBaseUrl(String rawUrl) {
+    var url = rawUrl.trim();
+    // 去除末尾斜杠
+    while (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    // 如果已包含完整 chat/completions 路径，提取 base
+    if (url.endsWith('/chat/completions')) {
+      url = url.substring(0, url.length - '/chat/completions'.length);
+    }
+    // 如果 URL 不含版本路径 (/v1, /v2 等)，自动追加 /v1
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      final path = uri.path;
+      // 检查路径中是否已有 /v1, /v2 等版本号或 /api 前缀
+      if (!RegExp(r'/v\d').hasMatch(path) && !path.contains('/api')) {
+        url = '$url/v1';
+      }
+    }
+    return url;
+  }
+
   @override
   Future<String> chat(List<ChatMessage> messages) async {
-    // 确保 baseUrl 不以 / 结尾
-    final baseUrl = config.baseUrl.endsWith('/')
-        ? config.baseUrl.substring(0, config.baseUrl.length - 1)
-        : config.baseUrl;
-
-    // 如果 baseUrl 已经包含 /chat/completions，不再追加
-    final endpoint = baseUrl.endsWith('/chat/completions')
-        ? baseUrl
-        : '$baseUrl/chat/completions';
+    final baseUrl = _normalizeBaseUrl(config.baseUrl);
+    final endpoint = '$baseUrl/chat/completions';
 
     final url = Uri.parse(endpoint);
     final http.Response response;
@@ -58,7 +74,11 @@ class OpenAICompatibleProvider implements AIProvider {
         '服务器返回了 HTML 而不是 JSON，Base URL 可能配置错误。\n'
         '当前请求地址: $endpoint\n'
         'HTTP 状态码: ${response.statusCode}\n'
-        '提示: 请确保 Base URL 指向 API 端点（如 https://api.openai.com/v1）',
+        '您输入的 Base URL: ${config.baseUrl}\n'
+        '提示: 请确保 Base URL 指向 API 端点，例如:\n'
+        '  • https://api.openai.com/v1\n'
+        '  • https://your-domain.com/v1\n'
+        '程序已自动尝试补全 /v1，但仍返回 HTML，请检查域名是否正确。',
       );
     }
 

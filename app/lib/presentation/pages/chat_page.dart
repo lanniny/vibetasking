@@ -141,12 +141,21 @@ class _ChatPageState extends State<ChatPage> {
                 controller: _scrollController,
                 padding: const EdgeInsets.all(16),
                 itemCount: state.messages.length +
-                    (state.lastCreatedTasks.isNotEmpty ? 1 : 0),
+                    (state.lastCreatedTasks.isNotEmpty ? 1 : 0) +
+                    (state.lastCreatedBills.isNotEmpty ? 1 : 0),
                 itemBuilder: (context, index) {
-                  // 最后一项：内联创建的任务卡片
-                  if (index == state.messages.length &&
-                      state.lastCreatedTasks.isNotEmpty) {
+                  final msgLen = state.messages.length;
+                  // 内联创建的任务卡片
+                  if (state.lastCreatedTasks.isNotEmpty &&
+                      index == msgLen) {
                     return _InlineTaskCards(tasks: state.lastCreatedTasks);
+                  }
+                  // 内联创建的账单卡片
+                  final billOffset =
+                      msgLen + (state.lastCreatedTasks.isNotEmpty ? 1 : 0);
+                  if (state.lastCreatedBills.isNotEmpty &&
+                      index == billOffset) {
+                    return _InlineBillCards(bills: state.lastCreatedBills);
                   }
 
                   final msg = state.messages[index];
@@ -439,6 +448,79 @@ class _InlineTaskCards extends StatelessWidget {
                           color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// 内联账单卡片展示
+class _InlineBillCards extends StatelessWidget {
+  final List<InlineCreatedBill> bills;
+  const _InlineBillCards({required this.bills});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12, left: 0, right: 60),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.tertiary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.receipt_long,
+                  size: 16, color: theme.colorScheme.tertiary),
+              const SizedBox(width: 6),
+              Text(
+                '已记录 ${bills.length} 笔账单',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.tertiary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...bills.map((b) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Icon(
+                      b.type == 'expense'
+                          ? Icons.arrow_downward
+                          : Icons.arrow_upward,
+                      size: 14,
+                      color: b.type == 'expense' ? Colors.red : Colors.green,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        b.description ?? b.category ?? '未分类',
+                        style: theme.textTheme.bodySmall,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '${b.type == "expense" ? "-" : "+"}¥${b.amount.toStringAsFixed(2)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color:
+                            b.type == 'expense' ? Colors.red : Colors.green,
+                      ),
+                    ),
                   ],
                 ),
               )),

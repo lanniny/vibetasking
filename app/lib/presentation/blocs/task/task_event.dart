@@ -55,6 +55,11 @@ class EditTask extends TaskEvent {
   final DateTime? dueDate;
   final bool clearDueDate;
   final List<String>? tags;
+  // Claude YOLO 字段
+  final String? workingDir;
+  final bool clearWorkingDir;
+  final String? aiPrompt;
+  final bool clearAiPrompt;
 
   const EditTask({
     required this.taskId,
@@ -65,11 +70,27 @@ class EditTask extends TaskEvent {
     this.dueDate,
     this.clearDueDate = false,
     this.tags,
+    this.workingDir,
+    this.clearWorkingDir = false,
+    this.aiPrompt,
+    this.clearAiPrompt = false,
   });
 
   @override
-  List<Object?> get props =>
-      [taskId, title, description, status, priority, dueDate, clearDueDate, tags];
+  List<Object?> get props => [
+        taskId,
+        title,
+        description,
+        status,
+        priority,
+        dueDate,
+        clearDueDate,
+        tags,
+        workingDir,
+        clearWorkingDir,
+        aiPrompt,
+        clearAiPrompt,
+      ];
 }
 
 class UpdateTaskStatus extends TaskEvent {

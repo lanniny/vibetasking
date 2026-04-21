@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:vibetasking/core/services/claude_yolo_service.dart';
 import 'package:vibetasking/data/database/database.dart';
 import 'package:vibetasking/core/theme/app_theme.dart';
+import 'package:vibetasking/presentation/widgets/common/claude_yolo_button.dart';
+import 'package:vibetasking/presentation/widgets/common/claude_yolo_scope.dart';
 import 'package:vibetasking/presentation/widgets/common/task_detail_dialog.dart';
 
 class TaskCard extends StatelessWidget {
@@ -53,6 +56,13 @@ class TaskCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  // Claude YOLO 按钮（有 service 时显示）
+                  Builder(builder: (ctx) {
+                    final ClaudeYoloService? service =
+                        ClaudeYoloScope.maybeOf(ctx);
+                    if (service == null) return const SizedBox.shrink();
+                    return ClaudeYoloButton(task: task, service: service);
+                  }),
                   _PriorityChip(priority: task.priority),
                 ],
               ),

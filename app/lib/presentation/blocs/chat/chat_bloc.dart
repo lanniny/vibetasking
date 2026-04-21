@@ -7,6 +7,8 @@ import 'package:vibetasking/core/ai_providers/ai_provider.dart' as ai;
 import 'package:vibetasking/core/ai_providers/provider_manager.dart';
 import 'package:vibetasking/core/ai_providers/task_parser.dart';
 import 'package:vibetasking/core/config/app_settings.dart';
+import 'package:vibetasking/presentation/blocs/bill/bill_bloc.dart';
+import 'package:vibetasking/presentation/blocs/bill/bill_event.dart';
 import 'package:vibetasking/presentation/blocs/task/task_bloc.dart';
 import 'package:vibetasking/presentation/blocs/task/task_event.dart';
 
@@ -48,18 +50,36 @@ class InlineCreatedTask {
   });
 }
 
+/// 聊天中内联展示的已创建账单
+class InlineCreatedBill {
+  final double amount;
+  final String type;
+  final String? category;
+  final String? description;
+
+  const InlineCreatedBill({
+    required this.amount,
+    required this.type,
+    this.category,
+    this.description,
+  });
+}
+
 class ChatState extends Equatable {
   final ChatStatus status;
   final List<ChatMessage> messages;
   final String? errorMessage;
   // 最近一次 AI 创建的任务（用于内联展示）
   final List<InlineCreatedTask> lastCreatedTasks;
+  // 最近一次 AI 创建的账单（用于内联展示）
+  final List<InlineCreatedBill> lastCreatedBills;
 
   const ChatState({
     this.status = ChatStatus.idle,
     this.messages = const [],
     this.errorMessage,
     this.lastCreatedTasks = const [],
+    this.lastCreatedBills = const [],
   });
 
   ChatState copyWith({
@@ -67,17 +87,20 @@ class ChatState extends Equatable {
     List<ChatMessage>? messages,
     String? errorMessage,
     List<InlineCreatedTask>? lastCreatedTasks,
+    List<InlineCreatedBill>? lastCreatedBills,
   }) {
     return ChatState(
       status: status ?? this.status,
       messages: messages ?? this.messages,
       errorMessage: errorMessage,
       lastCreatedTasks: lastCreatedTasks ?? this.lastCreatedTasks,
+      lastCreatedBills: lastCreatedBills ?? this.lastCreatedBills,
     );
   }
 
   @override
-  List<Object?> get props => [status, messages, errorMessage, lastCreatedTasks];
+  List<Object?> get props =>
+      [status, messages, errorMessage, lastCreatedTasks, lastCreatedBills];
 }
 
 // ── BLoC ──
@@ -86,6 +109,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final AppDatabase _db;
   final ProviderManager _providerManager;
   final TaskBloc _taskBloc;
+  BillBloc? _billBloc;
+
+  /// 设置 BillBloc 引用（在 main.dart 中注入）
+  void setBillBloc(BillBloc billBloc) => _billBloc = billBloc;
 
   ChatBloc(this._db, this._providerManager, this._taskBloc)
       : super(const ChatState()) {
@@ -112,6 +139,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       status: ChatStatus.sending,
       messages: messages,
       lastCreatedTasks: const [],
+      lastCreatedBills: const [],
     ));
 
     // 获取 AI Provider
@@ -143,6 +171,14 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       // 读取时间安排设置
       final settings = await AppSettings.load();
 
+      // 构建账单类别上下文
+      final allCategories = await _db.getAllBillCategories();
+      final billCatContext = allCategories.isEmpty
+          ? '（暂无类别）'
+          : allCategories
+              .map((c) => '- [${c.type}] ${c.icon} ${c.name}')
+              .join('\n');
+
       final aiMessages = <ai.ChatMessage>[
         ai.ChatMessage(
           role: 'system',
@@ -150,6 +186,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             today,
             taskContext: taskContext,
             enableTimeScheduling: settings.enableTimeScheduling,
+            billCategories: billCatContext,
           ),
         ),
         ...messages.reversed.take(20).toList().reversed.map(
@@ -233,6 +270,33 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         }
       }
 
+      // 创建账单记录
+      final createdBills = <InlineCreatedBill>[];
+      if (_billBloc != null) {
+        for (final bill in parsed.bills) {
+          // 根据类别名匹配 categoryId
+          int? catId;
+          if (bill.category != null) {
+            final match = allCategories.where(
+                (c) => c.name == bill.category && c.type == bill.type);
+            if (match.isNotEmpty) catId = match.first.id;
+          }
+          _billBloc!.add(AddBill(
+            amount: bill.amount,
+            type: bill.type,
+            categoryId: catId,
+            description: bill.description,
+            date: bill.date ?? DateTime.now(),
+          ));
+          createdBills.add(InlineCreatedBill(
+            amount: bill.amount,
+            type: bill.type,
+            category: bill.category,
+            description: bill.description,
+          ));
+        }
+      }
+
       // 保存 AI 回复
       await _db.insertMessage(ChatMessagesCompanion.insert(
         role: 'assistant',
@@ -243,6 +307,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         status: ChatStatus.idle,
         messages: messages,
         lastCreatedTasks: createdTasks,
+        lastCreatedBills: createdBills,
       ));
     } catch (e) {
       // #12 修复：错误信息不持久化到数据库，只在 state 中展示
