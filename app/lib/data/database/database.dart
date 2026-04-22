@@ -266,7 +266,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// 删除账单类别：先把所有引用它的 Bill.categoryId 设为 null，再删除类别
+  /// 默认类别（isDefault=true）不允许删除
   Future<int> deleteBillCategory(int id) async {
+    final cat = await (select(billCategories)..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (cat == null) return 0;
+    if (cat.isDefault) throw Exception('默认类别不能删除');
     return transaction(() async {
       await (update(bills)..where((b) => b.categoryId.equals(id)))
           .write(const BillsCompanion(categoryId: Value(null)));

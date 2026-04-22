@@ -165,9 +165,13 @@ class TaskBloc extends Bloc<TaskEvent, TaskState> {
     DeleteTask event,
     Emitter<TaskState> emit,
   ) async {
-    // deleteTask 内部已经在事务中级联清理子任务、TaskTags、Bills 关联
-    await _db.deleteTask(event.taskId);
-    await _reload(emit);
+    try {
+      // deleteTask 内部已经在事务中级联清理子任务、TaskTags、Bills 关联
+      await _db.deleteTask(event.taskId);
+      await _reload(emit);
+    } catch (e) {
+      emit(state.copyWith(status: TaskStatus.error, errorMessage: e.toString()));
+    }
   }
 
   void _onSearchTasks(SearchTasks event, Emitter<TaskState> emit) {

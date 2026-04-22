@@ -205,11 +205,13 @@ class ClaudeYoloService {
           error: '定时执行失败: $e',
         ));
       }
-      // 清理 scheduledAt
-      await _db.updateTask(TasksCompanion(
-        id: Value(task.id),
-        aiScheduledAt: const Value(null),
-      ));
+      // 清理 scheduledAt（任务可能已被删除，容错）
+      try {
+        await _db.updateTask(TasksCompanion(
+          id: Value(task.id),
+          aiScheduledAt: const Value(null),
+        ));
+      } catch (_) {}
     });
   }
 
