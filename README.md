@@ -177,6 +177,15 @@ app/lib/
 #### v1.0.0 (2026-04-08)
 - Initial release: AI Chat, Kanban, List, Timeline, Multi-provider AI, Dark Mode
 
+### Community
+
+VibeTasKing was first launched on the **LINUX DO** community — thanks to every member there for early feedback and discussion.
+
+| Channel | Purpose |
+|---------|---------|
+| [LINUX DO](https://linux.do) | Chinese discussion, tips, and feedback *(primary community)* |
+| [GitHub Issues](https://github.com/lanniny/vibetasking/issues) | Bug reports, feature requests, and async discussion |
+
 ### License
 
 [MIT License](LICENSE) — Copyright © 2026 lanniny

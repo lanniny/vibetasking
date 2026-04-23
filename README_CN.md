@@ -202,6 +202,15 @@ app/lib/
 
 ---
 
+### 社区
+
+VibeTasKing 最初在 **LINUX DO** 社区推出——感谢那里的每一位成员提供的早期反馈和讨论。
+
+| 渠道 | 用途 |
+|------|------|
+| [LINUX DO](https://linux.do) | 中文讨论、使用技巧和反馈（主要社区） |
+| [GitHub Issues](https://github.com/lanniny/vibetasking/issues) | 错误报告、功能请求和异步讨论 |
+
 ### 开源协议
 
 [MIT License](LICENSE) — Copyright © 2026 lanniny
